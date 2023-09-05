@@ -45,7 +45,6 @@ app.post('/moveTest', (req, res) => {
 
 
 app.post('/attack', (req, res) => {
-    console.log(req.body.data)
     const query = {
         text : 'update chessboard set ' + req.body.data.attacker + '=$1, ' + req.body.data.defender + '=$2 where board_num = 1',
         values : [req.body.data.attackerP, req.body.data.defenderP]
@@ -56,5 +55,78 @@ app.post('/attack', (req, res) => {
         })
 })
 
+
+// 온라인
+
+app.post('/login', (req, res) => {
+    const query = {
+        text : 'select id, nickname, levels, lose, wins from chessmember where id=$1 and password=$2',
+        values : [req.body.data.id, req.body.data.pwd]
+    };
+    client.query(query)
+        .then((response) => {
+            if(response.rowCount === 1){
+                return res.send(response.rows[0])
+            }ㅊ
+            return res.send('fail')
+        })
+})
+
+app.post('/duplic', (req, res) => {
+    const query = {
+        text : 'select * from chessmember where id=$1',
+        values : [req.body.data.id]
+    }
+    client.query(query)
+        .then((response) => {
+            if(response.rowCount !== 0){
+                return res.send('fail')
+            }
+            return res.send('sucess')
+        })
+})
+
+app.post('/sign', (req, res) => {
+    const query = {
+        text : 'insert into chessmember values($1, $2, $3, $4, 1, 0, 0)',
+        values : [req.body.data.id, req.body.data.pwd, req.body.data.email, req.body.data.nickname]
+    }
+    client.query(query)
+        .then((response) => {
+            return 
+        })
+})
+
+app.post('/roomlist', (req, res) => {
+    const query = {
+        text : 'select * from chessgame'
+    };
+    client.query(query)
+        .then((response) => {
+            return res.send(response.rows)
+        })
+})
+
+app.post('/lobbychat', (req, res) => {
+    const query = {
+        text : 'select * from chesschat where chatgroup = 0'
+    };
+    client.query(query)
+        .then((response) => {
+            return res.send(response.rows)
+        })
+})
+
+app.post('/chat', (req, res) => {
+    const query = {
+        text : 'insert into chesschat values(default, $1, $2, $3, $4, $5);',
+        values : [req.body.data.id, req.body.data.chatgroup, req.body.data.nickname, req.body.data.commend, req.body.data.time]
+    };
+    client.query(query)
+        .then((response) => {
+            return res.send()
+        })
+
+})
 
 app.listen(PORT, ()=>console.log(`${PORT} Listenling!`));
