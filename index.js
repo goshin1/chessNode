@@ -25,8 +25,7 @@ client.connect();
 app.post('/test', (req, res) => {
     console.log('체스판 불러오기')
     const query = {
-        text : 'select * from chessboard where board_num = $1;',
-        values : [req.body.data.board_num]
+        text : `select * from ${req.body.data.viewname};`
     }
     client.query(query)
         .then((response) => {
@@ -36,10 +35,11 @@ app.post('/test', (req, res) => {
 
 app.post('/moveTest', (req, res) => {   // 이동하려는 구역에 아무것도 없을 때
     console.log('체스말 이동하기')
+    // 'update chessboard set ' + req.body.data.target +  '= $1 where board_num = $2;'
     let query = {
-        text : 'update chessboard set ' + req.body.data.target +  '= $1 where board_num = $2;',
-        values : [req.body.data.end, req.body.data.board_num]
+        text : 'update ' + req.body.data.viewname + ' set ' + req.body.data.target + ' = \'' + req.body.data.end + '\''
     }
+    console.log(query)
     client.query(query)
     query = {
         text : 'update chessgame set turn = $1, first_time = $2, second_time = $3 where roomid = $4',
@@ -55,8 +55,8 @@ app.post('/moveTest', (req, res) => {   // 이동하려는 구역에 아무것�
 app.post('/attack', (req, res) => { // 이동하려는 구역에 상대 말이 있을 경우
     console.log('상대방 말 공격하기')
     let query = {
-        text : 'update chessboard set ' + req.body.data.attacker + '=$1, ' + req.body.data.defender + '=$2 where board_num = $3;',
-        values : [req.body.data.attackerP, req.body.data.defenderP, req.body.data.board_num]
+        text : 'update ' + req.body.data.viewname +' set ' + req.body.data.attacker + '=$1, ' + req.body.data.defender + '=$2;',
+        values : [req.body.data.attackerP, req.body.data.defenderP]
     }
     client.query(query)
     query = {
@@ -76,17 +76,7 @@ app.post('/turnChange', (req, res) => {
         text : 'update chessgame set turn = $1, first_time = $2, second_time = $3 where roomid = $4',
         values : [req.body.data.turn, String(req.body.data.first_time), String(req.body.data.second_time), req.body.data.roomid]
     };
-    // if(req.body.data.who === 1){
-    //     query = {
-    //         text : 'update chessgame set turn=$1, first_time=$2 where roomid=$3',
-    //         values : [req.body.data.turn, String(req.body.data.first_time), req.body.data.roomid]
-    //     };
-    // }else if(req.body.data.who === 2){
-    //     query = {
-    //         text : 'update chessgame set turn=$1, second_time=$2 where roomid=$3',
-    //         values : [req.body.data.turn, String(req.body.data.second_time), req.body.data.roomid]
-    //     };
-    // }
+
     client.query(query)
         .then((response) => {
             return res.send()
@@ -135,40 +125,56 @@ app.post('/banCheck', (req, res) => {
     }
     client.query(query)
         .then((response) => {
-            return res.send()
+            return res.send(String(req.body.data.ready + 1))
         })
 })
 
 app.post('/gameSet', (req, res) => {
-    if(req.body.data.who === 1){
-        let query = {
-            text : 'update chessmember wins = wins + 1 where id = $1',
-            values : [req.body.data.player_first]
-        };
-        client.query(query)
-        query = {
-            text : 'update chessmember lose = lose + 1 where id = $1',
-            values : [req.body.data.player_second]
-        }
-        client.query(query)
-            .then((response) => {
-                return res.send()
-            })
-    }else if(req.body.data.who === 2){
-        let query = {
-            text : 'update chessmember wins = wins + 1 where id = $1',
-            values : [req.body.data.player_second]
-        };
-        client.query(query)
-        query = {
-            text : 'update chessmember lose = lose + 1 where id = $1',
-            values : [req.body.data.player_first]
-        }
-        client.query(query)
-            .then((response) => {
-                return res.send()
-            })
+    let query = {
+        text : '',
+        values : []
     }
+
+    if(req.body.data.res === 1){
+        query = {
+            text : 'update chessmember set lose = lose + 1 where id = $1',
+            values : [req.body.data.id]
+        };
+    }else{
+        query = {
+            text : 'update chessmember set wins = wins + 1 where id = $1',
+            values : [req.body.data.id]
+        };
+    }
+    client.query(query)
+        .then((response) => {
+            res.send()
+        })
+
+    
+})
+
+app.post('/surrender', (req, res) => {
+    let query = {
+        text : '',
+        values : []
+    }
+    if(req.body.data.color === 'white'){
+        query = {
+            text : 'update chessboard set white_king = $1 where board_num = $2;',
+            values : ['0-0', req.body.data.board_num]
+        }
+    }else{
+        query = {
+            text : 'update chessboard set black_king = $1 where board_num = $2;',
+            values : ['0-0', req.body.data.board_num]
+        }
+    }
+    console.log(query)
+    client.query(query)
+        .then((response) => {
+            return res.send()
+        })
 })
 
 app.post('/updateGame', (req, res) => {
@@ -181,6 +187,45 @@ app.post('/updateGame', (req, res) => {
             return res.send(response.rows[0])
         })
 
+})
+
+app.post('/clearRoom', (req, res) => {
+    let query = {
+        text : 'delete from chessgame where roomid = $1',
+        values : [req.body.data.roomid]
+    }
+    client.query(query)
+
+    query = {
+        text : "SELECT table_schema, table_name AS view_name FROM information_schema.VIEWS WHERE table_schema NOT IN ('pg_catalog', 'information_schema') and table_name = '"+ req.body.data.viewname +"' ORDER BY table_schema, table_name;"
+    };
+    client.query(query)
+        .then((response) => {
+            if(response.rowCount > 0){
+                query = {
+                    text : 'drop view '+req.body.data.viewname
+                };
+                client.query(query)
+            }
+        });
+    query = {
+        text : 'delete from chessboard where board_num = $1',
+        values : [req.body.data.board_num]
+    };
+    client.query(query)
+        .then((response) => {
+            return res.send()
+        })
+})
+
+app.post('/promotion', (req, res) => {
+    let query = {
+        text : 'alter view ' + req.body.data.viewname + ' rename column '+ req.body.data.target +' to ' + req.body.data.selection + ';'
+    }
+    client.query(query)
+        .then((response) => {
+            return res.send()
+        })
 })
 
 // 온라인
@@ -198,9 +243,36 @@ app.post('/login', (req, res) => {
                     values : [req.body.data.id]
                 }
                 client.query(query)
-                return res.send(response.rows[0])
+                return res.send({
+                    login : true,
+                    info : response.rows[0]
+                })
             }
-            return res.send('fail')
+            return res.send({
+                login : false,
+                info : null
+            })
+        })
+})
+
+
+
+app.post('/loginenforce', (req, res) => {
+    let query = {
+        text : 'update chessmember set login = 0 where id = $1',
+        values : [req.body.data.id]
+    }
+    client.query(query)
+    query = {
+        text : 'select id, levels, lose, wins from chessmember where id=$1 and password=$2;',
+        values : [req.body.data.id, req.body.data.pwd]
+    };
+    client.query(query)
+        .then((response) => {
+            return res.send({
+                login : true,
+                info : response.rows[0]
+            })
         })
 })
 
@@ -231,12 +303,37 @@ app.post('/duplic', (req, res) => {
 
 app.post('/sign', (req, res) => {
     const query = {
-        text : 'insert into chessmember values($1, $2, $3, 1, 0, 0)',
+        text : 'insert into chessmember values($1, $2, $3, 1, 0, 0, 0)',
         values : [req.body.data.id, req.body.data.pwd, req.body.data.email]
     }
     client.query(query)
         .then((response) => {
             return 
+        })
+})
+
+app.post('/pwdcheck', (req, res) => {
+    const query = {
+        text : 'select * from chessmember where id = $1 and password = $2',
+        values : [req.body.data.id, req.body.data.pwd]
+    };
+    client.query(query)
+        .then((response) => {
+            if(response.rowCount === 1){
+                return res.send({chk : 1})
+            }
+            return res.send({chk : 0})
+        })
+})
+
+app.post('/update', (req, res) => {
+    const query = {
+        text : 'update chessmember set password = $1, email = $2 where id = $3',
+        values : [req.body.data.pwdch, req.body.data.email, req.body.data.id]
+    }
+    client.query(query)
+        .then((response) => {
+            return res.send({chk : 0})
         })
 })
 
@@ -276,6 +373,7 @@ app.post('/chat', (req, res) => {
         text : 'insert into chesschat values(default, $1, $2, $3, $4);',
         values : [req.body.data.id, req.body.data.chatgroup, req.body.data.commend, req.body.data.time]
     };
+    console.log(query)
     client.query(query)
         .then((response) => {
             return res.send()
@@ -308,12 +406,19 @@ app.post('/createRoom', (req, res) => {
         .then((response) => {
             if(response.rowCount >= 1){
                 let num = response.rows[0].board_num === null ? 0 : response.rows[0].board_num;
+                let viewname =  'game' + String(num)
                 query = {
-                    text : 'insert into chessgame values (default, $1, $2, \'none\', $3, \'none\', 0, 0, $4, $5, $6, $7)',
-                    values : [req.body.data.roomName, req.body.data.id, req.body.data.id, req.body.data.id, num, req.body.data.time, req.body.data.time]
+                    text : 'create view "' + viewname + '" as select * from chessboard where board_num = ' + String(num),
+                }
+                console.log(query)
+                client.query(query)
+
+                query = {
+                    text : 'insert into chessgame values (default, $1, $2, \'none\', $3, \'none\', 0, 0, $4, $5, $6, $7, $8)',
+                    values : [req.body.data.roomName, req.body.data.id, req.body.data.id, req.body.data.id, num, req.body.data.time, req.body.data.time, viewname]
                 }
                 client.query(query)
-                    .then((response) => {})
+
                 query = {
                     text : 'select * from chessgame where player_first=$1',
                     values : [req.body.data.id]
@@ -450,6 +555,18 @@ app.post('/testArr', (req, res) => {
     client.query(query)
         .then((response) => {
             console.log(response.rows)
+            return res.send()
+        })
+})
+
+
+app.post('/createview',(req, res) => {
+    console.log('check')
+    let query = {
+        text : 'create view game22 as select * from chessboard where board_num = 23'
+    }
+    client.query(query)
+        .then((response) => {
             return res.send()
         })
 })
