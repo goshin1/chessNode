@@ -45,6 +45,8 @@ app.post('/moveTest', (req, res) => {   // 이동하려는 구역에 아무것�
         text : 'update chessgame set turn = $1, first_time = $2, second_time = $3 where roomid = $4',
         values : [req.body.data.turn, req.body.data.first_time, req.body.data.second_time, req.body.data.roomid]
     }
+    console.log('이동 마무리')
+    console.log(query)
     client.query(query)
         .then((response) => {
             return res.send()
@@ -58,6 +60,7 @@ app.post('/attack', (req, res) => { // 이동하려는 구역에 상대 말이 �
         text : 'update ' + req.body.data.viewname +' set ' + req.body.data.attacker + '=$1, ' + req.body.data.defender + '=$2;',
         values : [req.body.data.attackerP, req.body.data.defenderP]
     }
+    console.log(query)
     client.query(query)
     query = {
         text : 'update chessgame set turn = $1, first_time = $2, second_time = $3 where roomid = $4',
@@ -467,8 +470,13 @@ app.post('/exitRoom', (req, res) => {
         text : '',
         values : []
     }
+    if(req.body.data.player_first === 'none' && req.body.data.player_second === 'none'){  // 한 명밖에 없는데 나갈 경우 // board는 나중에 삭제 다중 쿼리문은 오류
+        query.text = 'drop view '+ req.body.data.viewname + '';
+        query.values = [];
+        client.query(query)
+    }
     if(req.body.data.player_first === 'none' && req.body.data.player_second !== 'none'){  // first플레이어가 나갈 때
-        query.text = 'update chessgame set player_first=$1, player_second=\'none\', black=$2, white=\'none\' turn=$3 where roomid=$3'
+        query.text = 'update chessgame set player_first=$1, player_second=\'none\', black=$2, white=\'none\', turn=$3 where roomid=$3'
         query.values = [req.body.data.player_second, req.body.data.player_second, req.body.data.player_second, req.body.data.roomid]
     }else if(req.body.data.player_first !== 'none' && req.body.data.player_second === 'none'){  // second플레이어가 나갈 때
         query.text = 'update chessgame set player_second=\'none\', white = \'none\' where roomid=$1'
@@ -546,6 +554,18 @@ app.post('/testDouble', (req, res)=>{
             return res.send(response.rows)
         })
 })
+
+app.post('/insertBot', (req, res) => {
+    const query = {
+        text : "update chessgame set player_second = 'Aibot', white = 'Aibot', ready_second = 1 where roomid = $1",
+        values : [req.body.data.roomid]
+    }
+    client.query(query)
+        .then((response) => {
+            return res.send()
+        })
+})
+
 // 해당 숫자가 있는지 없는지 조회
 app.post('/testArr', (req, res) => {
     const query = {
@@ -572,3 +592,16 @@ app.post('/createview',(req, res) => {
 })
 
 app.listen(PORT, ()=>console.log(`${PORT} Listenling!`));
+
+// const test = [[1,3],[2,2],[3,1]]
+// test.sort((a, b) => a[1] - b[1])
+// test.sort()
+// console.log(test)
+
+// const test = {
+//     'a' : [3,2,1],
+//     'b' : 2,
+//     'c' : 3
+// }
+// test['a'].sort()
+// console.log(Object.values(test))
