@@ -415,11 +415,12 @@ app.post('/createRoom', (req, res) => {
                 }
                 console.log(query)
                 client.query(query)
-
+                
                 query = {
                     text : 'insert into chessgame values (default, $1, $2, \'none\', $3, \'none\', 0, 0, $4, $5, $6, $7, $8)',
                     values : [req.body.data.roomName, req.body.data.id, req.body.data.id, req.body.data.id, num, req.body.data.time, req.body.data.time, viewname]
                 }
+                console.log(query)
                 client.query(query)
 
                 query = {
@@ -427,7 +428,7 @@ app.post('/createRoom', (req, res) => {
                     values : [req.body.data.id]
                 }
                 // 수정 해야 될 것. 방을 만들 때 해당 유저가 이미 방을 만들었다면 리턴 시키도록 변경할 것
-
+                console.log(query)
                 client.query(query)
                     .then((response) => {
                         if(response.rowCount === 1){
